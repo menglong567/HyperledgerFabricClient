@@ -1,0 +1,63 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: fabricclient-nodeport
+  namespace: fabricclient-ns
+spec:
+  type: NodePort
+  selector:
+    app: fabricclient
+  ports:
+    - port: 9181
+      targetPort: 9181
+      nodePort: 32081
+---
+apiVersion: apps/v1  #Deployment and StatefulSet is defined in apps/v1 not in corev1
+kind: Deployment
+metadata:
+  name: fabricclient   #name of the deployment
+  namespace: fabricclient-ns
+  labels:
+    app: fabricclient
+spec:
+  replicas: 1  #for testing purpose i set to 1
+  selector:
+    matchLabels:
+      app: fabricclient
+  template:
+    metadata:
+      labels:
+        app: fabricclient
+    spec:
+      dnsConfig: {}
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      terminationGracePeriodSeconds: 10    #当删除Pod时，等待时间
+      containers:
+        - name: fabricclient
+          image: 127.0.0.1:5000/hyperledger-fabric-client:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: port
+              containerPort: 9181
+          volumeMounts:
+            - mountPath: /logs  #directory in docker container
+              name: log
+          env:
+            - name: APP_NAME
+              value: "fabricclient-server"
+            - name: server.port
+              value: "9181"
+          resources:
+            requests:
+              memory: "300Mi"
+              cpu: "300m"
+            limits:
+              memory: "300Mi"
+              cpu: "300m"
+      volumes:
+        - name: log
+          hostPath:
+            path: /home/fabricclient-service-k8s/logs  # directory location on host
+            type: DirectoryOrCreate
